@@ -1118,7 +1118,7 @@ function getHTML() {
       <button class="btn send-btn" style="background:#555; color:#fff; width: 100%; border-radius: 8px; margin-top:5px;" onclick="playNative()" class="i18n" data-tr="Eski Yöntem (Sadece Video - Sıfır Tarayıcı)">Legacy Mode (Video Only - Zero Browser)</button>
     </div>
     <div style="margin-top: 10px; font-size: 13px; color: var(--text-dim);">
-      <strong>Nasıl Çalışır?</strong> "Filmi Oynat" tuşu, TV'nin tarayıcısında reklamsız, sapsade, çökme yapmayan özel bir oynatıcı sayfası açar (JavaScript şişkinliği yoktur). Altyazı URL'si eklersen otomatik entegre olur.
+      <span class="i18n" data-tr="<strong>Nasıl Çalışır?</strong> &quot;Filmi Oynat&quot; tuşu, TV'nin tarayıcısında reklamsız, sapsade, çökme yapmayan özel bir oynatıcı sayfası açar (JavaScript şişkinliği yoktur). Altyazı URL'si eklersen otomatik entegre olur."><strong>How it works:</strong> "Play Movie" opens an ad-free, zero-javascript, ultra-light video player on the TV that prevents crashes. Subtitles are natively injected.</span>
     </div>
   </div>
 
