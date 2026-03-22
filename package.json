@@ -12,6 +12,7 @@
   "type": "commonjs",
   "dependencies": {
     "express": "^5.2.1",
-    "lgtv2": "^1.6.3"
+    "lgtv2": "^1.6.3",
+    "ws": "^8.20.0"
   }
 }
