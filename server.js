@@ -101,21 +101,21 @@ app.post('/api/connect', (req, res) => {
 
 // Volume
 app.post('/api/volume/up', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   tvConnection.request('ssap://audio/volumeUp', (err, r) => {
     res.json({ ok: !err, volume: currentVolume });
   });
 });
 
 app.post('/api/volume/down', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   tvConnection.request('ssap://audio/volumeDown', (err, r) => {
     res.json({ ok: !err, volume: currentVolume });
   });
 });
 
 app.post('/api/volume/set', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   const vol = parseInt(req.body.volume) || 0;
   tvConnection.request('ssap://audio/setVolume', { volume: vol }, (err, r) => {
     res.json({ ok: !err });
@@ -123,7 +123,7 @@ app.post('/api/volume/set', (req, res) => {
 });
 
 app.post('/api/mute', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   tvConnection.request('ssap://audio/setMute', { mute: !isMuted }, (err, r) => {
     isMuted = !isMuted;
     res.json({ ok: !err, muted: isMuted });
@@ -132,7 +132,7 @@ app.post('/api/mute', (req, res) => {
 
 // Power
 app.post('/api/power/off', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   tvConnection.request('ssap://system/turnOff', (err, r) => {
     res.json({ ok: !err });
   });
@@ -140,14 +140,14 @@ app.post('/api/power/off', (req, res) => {
 
 // Channel
 app.post('/api/channel/up', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   tvConnection.request('ssap://tv/channelUp', (err, r) => {
     res.json({ ok: !err });
   });
 });
 
 app.post('/api/channel/down', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   tvConnection.request('ssap://tv/channelDown', (err, r) => {
     res.json({ ok: !err });
   });
@@ -172,7 +172,7 @@ function getInputSocket(cb) {
 }
 
 function sendButton(name, res) {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   getInputSocket((err, sock) => {
     if (err) return res.status(500).json({ error: err.message });
     sock.send(`type:button\nname:${name}\n\n`);
@@ -214,7 +214,7 @@ app.post('/api/button/menu', (req, res) => sendButton('MENU', res));
 
 // Mouse pointer move
 app.post('/api/mouse/move', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   const { dx, dy } = req.body;
   getInputSocket((err, sock) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -225,7 +225,7 @@ app.post('/api/mouse/move', (req, res) => {
 
 // Mouse click
 app.post('/api/mouse/click', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   getInputSocket((err, sock) => {
     if (err) return res.status(500).json({ error: err.message });
     sock.send(`type:click\n\n`);
@@ -235,7 +235,7 @@ app.post('/api/mouse/click', (req, res) => {
 
 // Mouse scroll
 app.post('/api/mouse/scroll', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   const { dx, dy } = req.body;
   getInputSocket((err, sock) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -246,7 +246,7 @@ app.post('/api/mouse/scroll', (req, res) => {
 
 // App launcher
 app.post('/api/launch', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   const { appId, params } = req.body;
   tvConnection.request('ssap://system.launcher/launch', { id: appId, params: params || {} }, (err, r) => {
     res.json({ ok: !err, response: r });
@@ -255,7 +255,7 @@ app.post('/api/launch', (req, res) => {
 
 // Play Video Natively
 app.post('/api/play-video', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   const { url } = req.body;
   tvConnection.request('ssap://system.launcher/open', { target: url }, (err, r) => {
     res.json({ ok: !err, response: r });
@@ -264,7 +264,7 @@ app.post('/api/play-video', (req, res) => {
 
 // Open browser URL on TV
 app.post('/api/browser', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   const { url } = req.body;
   tvConnection.request('ssap://system.launcher/open', { target: url }, (err, r) => {
     res.json({ ok: !err, response: r });
@@ -332,7 +332,7 @@ app.get('/api/proxy-sub', async (req, res) => {
 
 // List apps
 app.get('/api/apps', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   tvConnection.request('ssap://com.webos.applicationManager/listApps', (err, r) => {
     if (err) return res.status(500).json({ error: err.message });
     const apps = (r.apps || []).map(a => ({ id: a.id, title: a.title, icon: a.icon }));
@@ -343,7 +343,7 @@ app.get('/api/apps', (req, res) => {
 
 // Toast notification
 app.post('/api/toast', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   tvConnection.request('ssap://system.notifications/createToast', { message: req.body.message || 'Merhaba!' }, (err, r) => {
     res.json({ ok: !err });
   });
@@ -351,7 +351,7 @@ app.post('/api/toast', (req, res) => {
 
 // Screenshot
 app.post('/api/input/text', (req, res) => {
-  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  if (!isConnected) return res.status(503).json({ error: 'TV not connected' });
   const { text } = req.body;
   tvConnection.request('ssap://com.webos.service.ime/insertText', { text, replace: 0 }, (err, r) => {
     res.json({ ok: !err });
@@ -968,21 +968,27 @@ function getHTML() {
 
   <!-- Header -->
   <div class="header">
-    <h1>📺 LG TV Kumanda</h1>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h1 style="margin:0; font-size:18px;">📺 <span data-tr="LG TV Kumanda">LG TV Remote</span></h1>
+      <select id="langSelect" onchange="changeLang(this.value)" style="background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:4px; outline:none;">
+        <option value="en">EN</option>
+        <option value="tr">TR</option>
+      </select>
+    </div>
     <div class="status-badge" id="statusBadge">
       <span class="status-dot"></span>
-      <span id="statusText">Bağlantı yok</span>
+      <span id="statusText" class="i18n" data-tr="Bağlantı yok">Not connected</span>
     </div>
     <div class="connect-btn-wrap" id="connectWrap" style="display:none">
-      <button class="btn connect-btn" onclick="apiPost('/api/connect')">🔌 Bağlan</button>
+      <button class="btn connect-btn" onclick="apiPost('/api/connect')" class="i18n" data-tr="🔌 Bağlan">🔌 Connect</button>
     </div>
   </div>
 
   <!-- Power & Source -->
   <div class="section">
     <div class="power-row">
-      <button class="btn power-btn" onclick="apiPost('/api/power/off')">⏻ Kapat</button>
-      <button class="btn power-btn" style="color:var(--blue);background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.2)" onclick="showApps()">📱 Uygulamalar</button>
+      <button class="btn power-btn" onclick="apiPost('/api/power/off')" class="i18n" data-tr="⏻ Kapat">⏻ Power Off</button>
+      <button class="btn power-btn" style="color:var(--blue);background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.2)" onclick="showApps()" class="i18n" data-tr="📱 Uygulamalar">📱 Apps</button>
       <button class="btn power-btn" style="color:var(--green);background:rgba(0,214,143,0.1);border-color:rgba(0,214,143,0.2)" onclick="apiPost('/api/button/info')">ℹ️ Info</button>
     </div>
   </div>
@@ -1002,9 +1008,9 @@ function getHTML() {
       <div class="empty"></div>
     </div>
     <div class="nav-row">
-      <button class="btn nav-btn" onclick="apiPost('/api/button/back')">↩ Geri</button>
-      <button class="btn nav-btn" onclick="apiPost('/api/button/home')">🏠 Ana</button>
-      <button class="btn nav-btn" onclick="apiPost('/api/button/exit')">✕ Çık</button>
+      <button class="btn nav-btn" onclick="apiPost('/api/button/back')" class="i18n" data-tr="↩ Geri">↩ Back</button>
+      <button class="btn nav-btn" onclick="apiPost('/api/button/home')" class="i18n" data-tr="🏠 Ana">🏠 Home</button>
+      <button class="btn nav-btn" onclick="apiPost('/api/button/exit')" class="i18n" data-tr="✕ Çık">✕ Exit</button>
     </div>
   </div>
 
@@ -1012,18 +1018,18 @@ function getHTML() {
   <div class="section">
     <div class="section-title">Touchpad (Mouse)</div>
     <div class="touchpad-area" id="touchpad">
-      <div class="touchpad-hint">🖱 Sürükle: İmleç hareket<br>Dokun: Tıkla<br>İki parmak: Kaydır</div>
+      <div class="touchpad-hint"><span class="i18n" data-tr='🖱 Sürükle: İmleç hareket<br>Dokun: Tıkla<br>İki parmak: Kaydır'>🖱 Drag: Move Cursor<br>Tap: Click<br>2 Fingers: Scroll</span></div>
       <div class="touchpad-dot" id="touchDot"></div>
     </div>
     <div class="touchpad-btns">
-      <button class="btn touchpad-click-btn" onclick="apiPost('/api/mouse/click')">🖱 Sol Tık</button>
-      <button class="btn touchpad-click-btn" onclick="apiPost('/api/button/back')">↩ Geri</button>
+      <button class="btn touchpad-click-btn" onclick="apiPost('/api/mouse/click')" class="i18n" data-tr="🖱 Sol Tık">🖱 Left Click</button>
+      <button class="btn touchpad-click-btn" onclick="apiPost('/api/button/back')" class="i18n" data-tr="↩ Geri">↩ Back</button>
     </div>
   </div>
 
   <!-- Volume -->
   <div class="section">
-    <div class="section-title">Ses</div>
+    <div class="section-title" class="i18n" data-tr="Ses">Volume</div>
     <div class="vol-row">
       <button class="btn vol-btn" onclick="apiPost('/api/volume/down')">−</button>
       <div class="vol-slider-wrap">
@@ -1038,7 +1044,7 @@ function getHTML() {
 
   <!-- Channel -->
   <div class="section">
-    <div class="section-title">Kanal</div>
+    <div class="section-title" class="i18n" data-tr="Kanal">Channel</div>
     <div class="ch-row">
       <button class="btn ch-btn" onclick="apiPost('/api/channel/down')">◀ CH −</button>
       <button class="btn ch-btn" onclick="apiPost('/api/channel/up')">CH + ▶</button>
@@ -1047,7 +1053,7 @@ function getHTML() {
 
   <!-- Media -->
   <div class="section">
-    <div class="section-title">Medya Kontrol</div>
+    <div class="section-title" class="i18n" data-tr="Medya Kontrol">Media Control</div>
     <div class="media-row">
       <button class="btn media-btn" onclick="apiPost('/api/button/rewind')">⏪</button>
       <button class="btn media-btn" onclick="apiPost('/api/button/play')">▶️</button>
@@ -1069,7 +1075,7 @@ function getHTML() {
 
   <!-- Number Pad -->
   <div class="section">
-    <div class="section-title">Numara Tuşları</div>
+    <div class="section-title" class="i18n" data-tr="Numara Tuşları">Number Pad</div>
     <div class="numpad">
       <button class="btn num-btn" onclick="apiPost('/api/button/1')">1</button>
       <button class="btn num-btn" onclick="apiPost('/api/button/2')">2</button>
@@ -1088,9 +1094,9 @@ function getHTML() {
 
   <!-- Browser URL -->
   <div class="section">
-    <div class="section-title">TV Tarayıcısı</div>
+    <div class="section-title" class="i18n" data-tr="TV Tarayıcısı">TV Browser</div>
     <div class="url-group">
-      <input type="url" class="url-input" id="urlInput" placeholder="URL girin..."
+      <input type="url" class="url-input" id="urlInput" placeholder="Enter URL..." data-tr-placeholder="URL girin..."
              onkeydown="if(event.key==='Enter')openURL()">
       <button class="btn url-send-btn" onclick="openURL()">→</button>
     </div>
@@ -1104,12 +1110,12 @@ function getHTML() {
 
   <!-- Native Video Player -->
   <div class="section">
-    <div class="section-title">📺 Direkt Film Oynat (Altyazı Destekli)</div>
+    <div class="section-title" class="i18n" data-tr="📺 Direkt Film Oynat (Altyazı Destekli)">📺 Direct Movie Play (w/ Subtitles)</div>
     <div class="url-group" style="flex-direction: column; gap: 8px;">
-      <input type="text" class="url-input" id="videoUrlInput" placeholder="Video Linki: https://...mp4, .m3u8">
-      <input type="text" class="url-input" id="subUrlInput" placeholder="Altyazı Linki (İsteğe Bağlı): https://...vtt veya .srt" onkeydown="if(event.key==='Enter')playVideo()">
-      <button class="btn send-btn" style="background:var(--green); color:#000; width: 100%; border-radius: 8px;" onclick="playVideo()">Filmi Oynat 🍿</button>
-      <button class="btn send-btn" style="background:#555; color:#fff; width: 100%; border-radius: 8px; margin-top:5px;" onclick="playNative()">Eski Yöntem (Sadece Video - Sıfır Tarayıcı)</button>
+      <input type="text" class="url-input" id="videoUrlInput" placeholder="Video Link: https://...mp4, .m3u8" data-tr-placeholder="Video Linki: https://...mp4, .m3u8">
+      <input type="text" class="url-input" id="subUrlInput" placeholder="Subtitle Link (Optional): https://...vtt or .srt" data-tr-placeholder="Altyazı Linki (İsteğe Bağlı): https://...vtt veya .srt" onkeydown="if(event.key==='Enter')playVideo()">
+      <button class="btn send-btn" style="background:var(--green); color:#000; width: 100%; border-radius: 8px;" onclick="playVideo()" class="i18n" data-tr="Filmi Oynat 🍿">Play Movie ��</button>
+      <button class="btn send-btn" style="background:#555; color:#fff; width: 100%; border-radius: 8px; margin-top:5px;" onclick="playNative()" class="i18n" data-tr="Eski Yöntem (Sadece Video - Sıfır Tarayıcı)">Legacy Mode (Video Only - Zero Browser)</button>
     </div>
     <div style="margin-top: 10px; font-size: 13px; color: var(--text-dim);">
       <strong>Nasıl Çalışır?</strong> "Filmi Oynat" tuşu, TV'nin tarayıcısında reklamsız, sapsade, çökme yapmayan özel bir oynatıcı sayfası açar (JavaScript şişkinliği yoktur). Altyazı URL'si eklersen otomatik entegre olur.
@@ -1118,9 +1124,9 @@ function getHTML() {
 
   <!-- Text Input -->
   <div class="section">
-    <div class="section-title">Metin Gönder (Klavye)</div>
+    <div class="section-title" class="i18n" data-tr="Metin Gönder (Klavye)">Send Text (Keyboard)</div>
     <div class="text-group">
-      <input type="text" class="text-input" id="textInput" placeholder="TV'ye metin yaz..."
+      <input type="text" class="text-input" id="textInput" placeholder="Type text to TV..." data-tr-placeholder="TV'ye metin yaz..."
              onkeydown="if(event.key==='Enter')sendText()">
       <button class="btn text-send-btn" onclick="sendText()">⌨</button>
     </div>
@@ -1193,7 +1199,7 @@ function getHTML() {
         }
       } else {
         badge.className = 'status-badge';
-        text.textContent = 'Bağlantı yok';
+        text.textContent = 'Not connected';
         wrap.style.display = 'block';
       }
     }).catch(function() {});
@@ -1218,7 +1224,7 @@ function getHTML() {
     if (!url) return;
     if (url.indexOf('://') === -1) url = 'http://' + url;
     apiPost('/api/browser', { url: url }).then(function() {
-      showToast('🌐 URL gönderildi');
+      showToast('🌐 URL sent');
     });
   }
 
@@ -1238,7 +1244,7 @@ function getHTML() {
     if (subUrl) playerLink += '&subUrl=' + encodeURIComponent(subUrl);
     
     apiPost('/api/browser', { url: playerLink }).then(function() {
-      showToast('🍿 Özel oynatıcı TV tarayıcısında açılıyor!');
+      showToast('🍿 Custom player is opening on TV browser!');
     });
   }
 
@@ -1247,7 +1253,7 @@ function getHTML() {
     if (!url) return;
     if (url.indexOf('://') === -1) url = 'http://' + url;
     apiPost('/api/play-video', { url: url }).then(function() {
-      showToast('⚡ Doğrudan TV medya oynatıcısı başlatıldı!');
+      showToast('⚡ Native TV media player launched!');
     });
   }
 
@@ -1263,7 +1269,7 @@ function getHTML() {
     if (!text) return;
     apiPost('/api/input/text', { text: text }).then(function() {
       document.getElementById('textInput').value = '';
-      showToast('⌨️ Metin gönderildi');
+      showToast('⌨️ Text sent');
     });
   }
 
@@ -1277,9 +1283,9 @@ function getHTML() {
           '<span style="font-size:24px">📦</span>' +
           '<span>' + app.title + '</span></button>';
       });
-      document.getElementById('appList').innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:30px">Uygulama bulunamadı</div>';
+      document.getElementById('appList').innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:30px" class="i18n" data-tr="Uygulama bulunamadı">No apps found</div>';
     }).catch(function() {
-      document.getElementById('appList').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:30px">TV bağlı değil</div>';
+      document.getElementById('appList').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:30px" class="i18n" data-tr="TV bağlı değil">TV not connected</div>';
     });
   }
 
@@ -1289,7 +1295,7 @@ function getHTML() {
 
   function launchApp(id) {
     apiPost('/api/launch', { appId: id }).then(function() {
-      showToast('🚀 Uygulama başlatıldı');
+      showToast('🚀 App launched');
       closeApps();
     });
   }
