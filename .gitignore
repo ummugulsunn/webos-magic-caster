@@ -1,0 +1,7 @@
+node_modules/
+tv-key.json
+test-play.js
+dejavuln/
+kodi.ipk
+.DS_Store
+*.log

@@ -3,8 +3,17 @@ const lgtv = require('lgtv2');
 const path = require('path');
 
 const app = express();
+const os = require('os');
 const PORT = 3333;
 const TV_IP = process.env.TV_IP || '192.168.1.148';
+
+let LAN_IP = '127.0.0.1';
+const nets = os.networkInterfaces();
+for (const name of Object.keys(nets)) {
+  for (const net of nets[name]) {
+    if (net.family === 'IPv4' && !net.internal) LAN_IP = net.address;
+  }
+}
 
 let tvConnection = null;
 let isConnected = false;
@@ -203,11 +212,52 @@ app.post('/api/button/blue', (req, res) => sendButton('BLUE', res));
 app.post('/api/button/info', (req, res) => sendButton('INFO', res));
 app.post('/api/button/menu', (req, res) => sendButton('MENU', res));
 
+// Mouse pointer move
+app.post('/api/mouse/move', (req, res) => {
+  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  const { dx, dy } = req.body;
+  getInputSocket((err, sock) => {
+    if (err) return res.status(500).json({ error: err.message });
+    sock.send(`type:move\ndx:${dx || 0}\ndy:${dy || 0}\ndown:0\n\n`);
+    res.json({ ok: true });
+  });
+});
+
+// Mouse click
+app.post('/api/mouse/click', (req, res) => {
+  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  getInputSocket((err, sock) => {
+    if (err) return res.status(500).json({ error: err.message });
+    sock.send(`type:click\n\n`);
+    res.json({ ok: true });
+  });
+});
+
+// Mouse scroll
+app.post('/api/mouse/scroll', (req, res) => {
+  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  const { dx, dy } = req.body;
+  getInputSocket((err, sock) => {
+    if (err) return res.status(500).json({ error: err.message });
+    sock.send(`type:scroll\ndx:${dx || 0}\ndy:${dy || 0}\n\n`);
+    res.json({ ok: true });
+  });
+});
+
 // App launcher
 app.post('/api/launch', (req, res) => {
   if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
   const { appId, params } = req.body;
   tvConnection.request('ssap://system.launcher/launch', { id: appId, params: params || {} }, (err, r) => {
+    res.json({ ok: !err, response: r });
+  });
+});
+
+// Play Video Natively
+app.post('/api/play-video', (req, res) => {
+  if (!isConnected) return res.status(503).json({ error: 'TV bağlı değil' });
+  const { url } = req.body;
+  tvConnection.request('ssap://system.launcher/open', { target: url }, (err, r) => {
     res.json({ ok: !err, response: r });
   });
 });
@@ -219,6 +269,65 @@ app.post('/api/browser', (req, res) => {
   tvConnection.request('ssap://system.launcher/open', { target: url }, (err, r) => {
     res.json({ ok: !err, response: r });
   });
+});
+
+// Custom Ultra-Light Video Player with Subtitles
+app.get('/player', (req, res) => {
+  const { videoUrl, subUrl } = req.query;
+  const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Antigravity TV Player</title>
+  <style>
+    body { background: #000; margin: 0; padding: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    video { width: 100%; height: 100%; outline: none; }
+    ::cue { font-size: 40px; color: yellow; text-shadow: 2px 2px 4px #000; }
+  </style>
+</head>
+<body>
+  <video id="player" controls autoplay ${videoUrl.endsWith('.m3u8') ? '' : 'crossorigin="anonymous"'}>
+    <source src="${videoUrl}" type="${videoUrl.endsWith('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'}">
+    ${subUrl ? `<track src="/api/proxy-sub?url=${encodeURIComponent(subUrl)}" kind="subtitles" srclang="tr" label="Türkçe" default>` : ''}
+  </video>
+  <script>
+    // LG WebOS Chrome 38 sometimes needs explicit play call
+    document.getElementById('player').play().catch(e => console.log(e));
+  </script>
+</body>
+</html>
+  `;
+  res.send(html);
+});
+
+// Smart Subtitle Proxy (SRT to VTT & CORS handler)
+app.get('/api/proxy-sub', async (req, res) => {
+  let subUrl = req.query.url;
+  if (!subUrl) return res.status(400).send('No URL');
+  
+  // Auto-convert standard GitHub blob URLs to Raw URLs
+  if (subUrl.includes('github.com') && subUrl.includes('/blob/')) {
+    subUrl = subUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+  }
+
+  try {
+    const response = await fetch(subUrl);
+    if (!response.ok) throw new Error('Fetch failed ' + response.status);
+    let text = await response.text();
+    
+    // Convert SRT to VTT on the fly for the TV Browser
+    if (!text.trim().startsWith('WEBVTT')) {
+      text = 'WEBVTT\n\n' + text.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+    }
+    
+    res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.send(text);
+  } catch (err) {
+    console.error('Subtitle Proxy Error:', err.message);
+    res.status(500).send('WEBVTT\n\n1\n00:00:00.000 --> 00:00:10.000\nAltyazı yüklenemedi: ' + err.message);
+  }
 });
 
 // List apps
@@ -268,6 +377,7 @@ function getHTML() {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<script>window.LAN_IP = "${LAN_IP}";</script>
 <title>LG TV Kumanda</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -780,6 +890,77 @@ function getHTML() {
     cursor: pointer;
   }
   .connect-btn:hover { opacity: 0.9; }
+
+  /* Touchpad */
+  .touchpad-area {
+    width: 100%;
+    height: 220px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, rgba(30,30,50,0.8), rgba(20,20,35,0.9));
+    border: 1px solid rgba(255,255,255,0.08);
+    position: relative;
+    touch-action: none;
+    cursor: crosshair;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .touchpad-area:active {
+    border-color: var(--accent);
+  }
+  .touchpad-area::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at var(--tx, 50%) var(--ty, 50%), rgba(226,26,112,0.08) 0%, transparent 60%);
+    pointer-events: none;
+    transition: opacity 0.2s;
+    opacity: 0;
+  }
+  .touchpad-area.active::before {
+    opacity: 1;
+  }
+  .touchpad-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-dim);
+    font-size: 12px;
+    pointer-events: none;
+    text-align: center;
+    line-height: 1.6;
+    opacity: 0.5;
+  }
+  .touchpad-dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent-glow);
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.15s;
+  }
+  .touchpad-area.active .touchpad-dot {
+    opacity: 1;
+  }
+  .touchpad-btns {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .touchpad-click-btn {
+    flex: 1;
+    height: 42px;
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .touchpad-click-btn:hover { background: rgba(255,255,255,0.08); }
 </style>
 </head>
 <body>
@@ -824,6 +1005,19 @@ function getHTML() {
       <button class="btn nav-btn" onclick="apiPost('/api/button/back')">↩ Geri</button>
       <button class="btn nav-btn" onclick="apiPost('/api/button/home')">🏠 Ana</button>
       <button class="btn nav-btn" onclick="apiPost('/api/button/exit')">✕ Çık</button>
+    </div>
+  </div>
+
+  <!-- Touchpad -->
+  <div class="section">
+    <div class="section-title">Touchpad (Mouse)</div>
+    <div class="touchpad-area" id="touchpad">
+      <div class="touchpad-hint">🖱 Sürükle: İmleç hareket<br>Dokun: Tıkla<br>İki parmak: Kaydır</div>
+      <div class="touchpad-dot" id="touchDot"></div>
+    </div>
+    <div class="touchpad-btns">
+      <button class="btn touchpad-click-btn" onclick="apiPost('/api/mouse/click')">🖱 Sol Tık</button>
+      <button class="btn touchpad-click-btn" onclick="apiPost('/api/button/back')">↩ Geri</button>
     </div>
   </div>
 
@@ -905,6 +1099,20 @@ function getHTML() {
       <button class="btn bookmark-btn" onclick="quickURL('https://hdfilmcehennemi.nl')">hdfilmcehennemi</button>
       <button class="btn bookmark-btn" onclick="quickURL('http://192.168.1.140:8090')">TorrServer</button>
       <button class="btn bookmark-btn" onclick="quickURL('http://192.168.1.140:8080')">http-server</button>
+    </div>
+  </div>
+
+  <!-- Native Video Player -->
+  <div class="section">
+    <div class="section-title">📺 Direkt Film Oynat (Altyazı Destekli)</div>
+    <div class="url-group" style="flex-direction: column; gap: 8px;">
+      <input type="text" class="url-input" id="videoUrlInput" placeholder="Video Linki: https://...mp4, .m3u8">
+      <input type="text" class="url-input" id="subUrlInput" placeholder="Altyazı Linki (İsteğe Bağlı): https://...vtt veya .srt" onkeydown="if(event.key==='Enter')playVideo()">
+      <button class="btn send-btn" style="background:var(--green); color:#000; width: 100%; border-radius: 8px;" onclick="playVideo()">Filmi Oynat 🍿</button>
+      <button class="btn send-btn" style="background:#555; color:#fff; width: 100%; border-radius: 8px; margin-top:5px;" onclick="playNative()">Eski Yöntem (Sadece Video - Sıfır Tarayıcı)</button>
+    </div>
+    <div style="margin-top: 10px; font-size: 13px; color: var(--text-dim);">
+      <strong>Nasıl Çalışır?</strong> "Filmi Oynat" tuşu, TV'nin tarayıcısında reklamsız, sapsade, çökme yapmayan özel bir oynatıcı sayfası açar (JavaScript şişkinliği yoktur). Altyazı URL'si eklersen otomatik entegre olur.
     </div>
   </div>
 
@@ -1014,6 +1222,35 @@ function getHTML() {
     });
   }
 
+  function playVideo() {
+    var videoUrl = document.getElementById('videoUrlInput').value.trim();
+    var subUrl = document.getElementById('subUrlInput').value.trim();
+    if (!videoUrl) return;
+    
+    // We will host the player purely on the node server and open it on the TV browser
+    var localIP = window.location.hostname;
+    // Fallback to the real server IP if accessed via localhost
+    if (localIP === 'localhost' || localIP === '127.0.0.1') {
+      localIP = window.LAN_IP || '${LAN_IP}';
+    }
+    
+    var playerLink = 'http://' + localIP + ':3333/player?videoUrl=' + encodeURIComponent(videoUrl);
+    if (subUrl) playerLink += '&subUrl=' + encodeURIComponent(subUrl);
+    
+    apiPost('/api/browser', { url: playerLink }).then(function() {
+      showToast('🍿 Özel oynatıcı TV tarayıcısında açılıyor!');
+    });
+  }
+
+  function playNative() {
+    var url = document.getElementById('videoUrlInput').value.trim();
+    if (!url) return;
+    if (url.indexOf('://') === -1) url = 'http://' + url;
+    apiPost('/api/play-video', { url: url }).then(function() {
+      showToast('⚡ Doğrudan TV medya oynatıcısı başlatıldı!');
+    });
+  }
+
   function quickURL(url) {
     document.getElementById('urlInput').value = url;
     apiPost('/api/browser', { url: url }).then(function() {
@@ -1086,6 +1323,155 @@ function getHTML() {
       case ' ': apiPost('/api/button/play'); e.preventDefault(); break;
     }
   });
+
+  // ─── Touchpad ─────────────────────────────────────────
+  (function() {
+    var pad = document.getElementById('touchpad');
+    var dot = document.getElementById('touchDot');
+    var dragging = false;
+    var lastX = 0, lastY = 0;
+    var lastSend = 0;
+    var SENSITIVITY = 1.8;
+    var THROTTLE = 30; // ms between sends
+    var tapStart = 0;
+    var tapX = 0, tapY = 0;
+    var TAP_THRESHOLD = 10; // px
+    var TAP_TIME = 250; // ms
+
+    // Track two-finger scroll
+    var lastTouches = null;
+
+    function sendMove(dx, dy) {
+      var now = Date.now();
+      if (now - lastSend < THROTTLE) return;
+      lastSend = now;
+      var sdx = Math.round(dx * SENSITIVITY);
+      var sdy = Math.round(dy * SENSITIVITY);
+      if (sdx === 0 && sdy === 0) return;
+      // Fire and forget for responsiveness
+      fetch('/api/mouse/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dx: sdx, dy: sdy })
+      }).catch(function(){});
+    }
+
+    function sendScroll(dy) {
+      var now = Date.now();
+      if (now - lastSend < THROTTLE) return;
+      lastSend = now;
+      fetch('/api/mouse/scroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dx: 0, dy: Math.round(dy) })
+      }).catch(function(){});
+    }
+
+    function updateDot(x, y) {
+      var rect = pad.getBoundingClientRect();
+      var px = x - rect.left;
+      var py = y - rect.top;
+      dot.style.left = px + 'px';
+      dot.style.top = py + 'px';
+      pad.style.setProperty('--tx', (px / rect.width * 100) + '%');
+      pad.style.setProperty('--ty', (py / rect.height * 100) + '%');
+    }
+
+    // Mouse events
+    pad.addEventListener('mousedown', function(e) {
+      dragging = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      tapStart = Date.now();
+      tapX = e.clientX;
+      tapY = e.clientY;
+      pad.classList.add('active');
+      updateDot(e.clientX, e.clientY);
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (!dragging) return;
+      var dx = e.clientX - lastX;
+      var dy = e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      updateDot(e.clientX, e.clientY);
+      sendMove(dx, dy);
+    });
+
+    document.addEventListener('mouseup', function(e) {
+      if (!dragging) return;
+      dragging = false;
+      pad.classList.remove('active');
+      // Check for tap (click)
+      var dist = Math.sqrt(Math.pow(e.clientX - tapX, 2) + Math.pow(e.clientY - tapY, 2));
+      var elapsed = Date.now() - tapStart;
+      if (dist < TAP_THRESHOLD && elapsed < TAP_TIME) {
+        apiPost('/api/mouse/click');
+      }
+    });
+
+    // Mouse wheel on pad = scroll
+    pad.addEventListener('wheel', function(e) {
+      e.preventDefault();
+      sendScroll(e.deltaY > 0 ? 1 : -1);
+    });
+
+    // Touch events
+    pad.addEventListener('touchstart', function(e) {
+      if (e.touches.length === 1) {
+        dragging = true;
+        lastX = e.touches[0].clientX;
+        lastY = e.touches[0].clientY;
+        tapStart = Date.now();
+        tapX = lastX;
+        tapY = lastY;
+        pad.classList.add('active');
+        updateDot(lastX, lastY);
+      } else if (e.touches.length === 2) {
+        dragging = false;
+        lastTouches = {
+          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+        };
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    pad.addEventListener('touchmove', function(e) {
+      if (e.touches.length === 1 && dragging) {
+        var dx = e.touches[0].clientX - lastX;
+        var dy = e.touches[0].clientY - lastY;
+        lastX = e.touches[0].clientX;
+        lastY = e.touches[0].clientY;
+        updateDot(lastX, lastY);
+        sendMove(dx, dy);
+      } else if (e.touches.length === 2 && lastTouches) {
+        var avgY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        var scrollDy = avgY - lastTouches.y;
+        lastTouches.y = avgY;
+        if (Math.abs(scrollDy) > 3) {
+          sendScroll(scrollDy > 0 ? 1 : -1);
+        }
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    pad.addEventListener('touchend', function(e) {
+      if (e.touches.length === 0) {
+        if (dragging) {
+          dragging = false;
+          pad.classList.remove('active');
+          var dist = Math.sqrt(Math.pow(lastX - tapX, 2) + Math.pow(lastY - tapY, 2));
+          var elapsed = Date.now() - tapStart;
+          if (dist < TAP_THRESHOLD && elapsed < TAP_TIME) {
+            apiPost('/api/mouse/click');
+          }
+        }
+        lastTouches = null;
+      }
+    });
+  })();
 </script>
 </body>
 </html>`;
