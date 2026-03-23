@@ -4,7 +4,7 @@ const path = require('path');
 
 const app = express();
 const os = require('os');
-const PORT = 3333;
+const PORT = Number(process.env.PORT) || 3333;
 const TV_IP = process.env.TV_IP || '192.168.1.148';
 
 let LAN_IP = '127.0.0.1';
