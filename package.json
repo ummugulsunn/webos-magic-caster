@@ -1,7 +1,7 @@
 {
   "name": "webos-magic-caster",
   "version": "1.0.0",
-  "description": "Antigravity Remote & Subtitle WebOS Caster. A powerful open-source Node.js remote control for LG WebOS TVs featuring a touchpad, keyboard, direct native video throwing, and a zero-crash custom HTML5 proxy player that plays raw video and SRT/VTT subtitles seamlessly natively.",
+  "description": "A powerful, zero-crash Node.js remote control & video caster for LG WebOS Smart TVs featuring native video and subtitle playback.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
